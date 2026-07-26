@@ -1,0 +1,54 @@
+# ─── Dependencies ──────────────────────────────────────────
+node_modules/
+.pnp
+.pnp.js
+.yarn/install-state.gz
+
+# ─── Build ─────────────────────────────────────────────────
+dist/
+build/
+.next/
+out/
+
+# ─── Environment ───────────────────────────────────────────
+.env
+.env.local
+.env.*.local
+
+# ─── IDE ───────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ─── OS ────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+
+# ─── Testing ───────────────────────────────────────────────
+coverage/
+*.lcov
+
+# ─── Logs ──────────────────────────────────────────────────
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# ─── Database ──────────────────────────────────────────────
+prisma/dev.db
+prisma/dev.db-journal
+
+# ─── Docker ────────────────────────────────────────────────
+docker-data/
+
+# ─── TypeScript ────────────────────────────────────────────
+*.tsbuildinfo
+next-env.d.ts
+
+# ─── Miscellaneous ─────────────────────────────────────────
+*.pem
+.vercel

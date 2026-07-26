@@ -1,0 +1,30 @@
+export const AUDIT_ACTION = {
+  // ─── Auth ───────────────────────────────────────────────
+  LOGIN: "AUTH_LOGIN",
+  LOGOUT: "AUTH_LOGOUT",
+  LOGIN_FAILED: "AUTH_LOGIN_FAILED",
+  TOKEN_REFRESHED: "AUTH_TOKEN_REFRESHED",
+  PASSWORD_RESET_REQUESTED: "PASSWORD_RESET_REQUESTED",
+  PASSWORD_RESET_COMPLETED: "PASSWORD_RESET_COMPLETED",
+
+  // ─── Users ──────────────────────────────────────────────
+  USER_CREATED: "USER_CREATED",
+  USER_UPDATED: "USER_UPDATED",
+  USER_DELETED: "USER_DELETED",
+  USER_STATUS_CHANGED: "USER_STATUS_CHANGED",
+
+  // ─── Roles & Permissions ────────────────────────────────
+  ROLE_CREATED: "ROLE_CREATED",
+  ROLE_UPDATED: "ROLE_UPDATED",
+  ROLE_DELETED: "ROLE_DELETED",
+  PERMISSION_ASSIGNED: "PERMISSION_ASSIGNED",
+  PERMISSION_REVOKED: "PERMISSION_REVOKED",
+
+  // ─── Organization ───────────────────────────────────────
+  ORG_CREATED: "ORG_CREATED",
+  ORG_UPDATED: "ORG_UPDATED",
+  ORG_DELETED: "ORG_DELETED",
+  ORG_SETTINGS_UPDATED: "ORG_SETTINGS_UPDATED",
+} as const;
+
+export type AuditAction = (typeof AUDIT_ACTION)[keyof typeof AUDIT_ACTION];

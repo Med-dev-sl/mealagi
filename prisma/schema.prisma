@@ -1,0 +1,253 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Status {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+  DELETED
+}
+
+enum SubscriptionPlan {
+  FREE
+  STARTER
+  PROFESSIONAL
+  ENTERPRISE
+}
+
+enum AuditSeverity {
+  DEBUG
+  INFO
+  WARNING
+  ERROR
+  CRITICAL
+}
+
+model Organization {
+  id               String           @id @default(uuid())
+  name             String
+  slug             String           @unique
+  code             String           @unique
+  email            String?
+  phone            String?
+  country          String?
+  address          String?
+  logo             String?
+  subscriptionPlan SubscriptionPlan @default(FREE)
+  status           Status           @default(ACTIVE)
+  createdById      String?
+  updatedById      String?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  deletedAt        DateTime?
+
+  createdBy User?  @relation("OrganizationCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy User?  @relation("OrganizationUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  users              User[]
+  roles              Role[]
+  auditLogs          AuditLog[]
+  settings           OrganizationSettings?
+
+  @@index([slug])
+  @@index([code])
+  @@index([status])
+  @@index([subscriptionPlan])
+  @@index([deletedAt])
+}
+
+model OrganizationSettings {
+  id               String   @id @default(uuid())
+  organizationId   String   @unique
+  locale           String   @default("en")
+  timezone         String   @default("UTC")
+  dateFormat       String   @default("YYYY-MM-DD")
+  currency         String   @default("USD")
+  featureFlags     Json?    @default("{}")
+  sessionTimeoutMs Int?     @default(3600000)
+  maxLoginAttempts Int?     @default(5)
+  passwordPolicy   Json?    @default("{}")
+  metadata         Json?    @default("{}")
+  createdById      String?
+  updatedById      String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdBy    User?        @relation("OrganizationSettingsCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy    User?        @relation("OrganizationSettingsUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  @@index([organizationId])
+}
+
+model User {
+  id               String    @id @default(uuid())
+  organizationId   String
+  firstName        String
+  lastName         String
+  email            String    @unique
+  phone            String?
+  passwordHash     String
+  avatar           String?
+  jobTitle         String?
+  status           Status    @default(ACTIVE)
+  emailVerified    Boolean   @default(false)
+  lastLogin        DateTime?
+  createdById      String?
+  updatedById      String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  deletedAt        DateTime?
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  createdBy User? @relation("UserCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy User? @relation("UserUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  usersCreated   User[]  @relation("UserCreatedBy")
+  usersUpdated   User[]  @relation("UserUpdatedBy")
+  orgsCreated    Organization[] @relation("OrganizationCreatedBy")
+  orgsUpdated    Organization[] @relation("OrganizationUpdatedBy")
+  settingsCreated OrganizationSettings[] @relation("OrganizationSettingsCreatedBy")
+  settingsUpdated OrganizationSettings[] @relation("OrganizationSettingsUpdatedBy")
+  rolesCreated   Role[]  @relation("RoleCreatedBy")
+  rolesUpdated   Role[]  @relation("RoleUpdatedBy")
+  permissionsCreated Permission[] @relation("PermissionCreatedBy")
+
+  userRoles  UserRole[]
+  sessions   Session[]
+  auditLogs  AuditLog[]
+
+  @@index([organizationId])
+  @@index([email])
+  @@index([status])
+  @@index([deletedAt])
+  @@index([organizationId, status])
+  @@index([organizationId, email])
+}
+
+model Role {
+  id             String   @id @default(uuid())
+  name           String
+  description    String?
+  organizationId String
+  isSystem       Boolean  @default(false)
+  createdById    String?
+  updatedById    String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  deletedAt      DateTime?
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdBy    User?        @relation("RoleCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy    User?        @relation("RoleUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  userRoles       UserRole[]
+  rolePermissions RolePermission[]
+
+  @@unique([name, organizationId])
+  @@index([organizationId])
+  @@index([organizationId, isSystem])
+  @@index([deletedAt])
+}
+
+model Permission {
+  id          String   @id @default(uuid())
+  resource    String
+  action      String
+  description String?
+  isSystem    Boolean  @default(false)
+  createdById String?
+  createdAt   DateTime @default(now())
+  deletedAt   DateTime?
+
+  createdBy      User?            @relation("PermissionCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  rolePermissions RolePermission[]
+
+  @@unique([resource, action])
+  @@index([resource])
+  @@index([action])
+  @@index([deletedAt])
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+}
+
+model UserRole {
+  userId String
+  roleId String
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+}
+
+model Session {
+  id                String   @id @default(uuid())
+  userId            String
+  tokenHash         String   @unique
+  refreshTokenHash  String?  @unique
+  ipAddress         String?
+  userAgent         String?
+  deviceFingerprint String?
+  location          String?
+  isRevoked         Boolean  @default(false)
+  revokedAt         DateTime?
+  expiresAt         DateTime
+  createdAt         DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([tokenHash])
+  @@index([refreshTokenHash])
+  @@index([expiresAt])
+  @@index([userId, isRevoked])
+  @@index([userId, expiresAt])
+}
+
+model AuditLog {
+  id             String        @id @default(uuid())
+  organizationId String
+  userId         String?
+  action         String
+  resource       String
+  resourceId     String?
+  severity       AuditSeverity @default(INFO)
+  changes        Json?
+  metadata       Json?
+  correlationId  String?
+  requestId      String?
+  ipAddress      String?
+  userAgent      String?
+  createdAt      DateTime      @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId])
+  @@index([userId])
+  @@index([action])
+  @@index([resource])
+  @@index([resourceId])
+  @@index([severity])
+  @@index([correlationId])
+  @@index([requestId])
+  @@index([createdAt])
+  @@index([organizationId, action, createdAt])
+  @@index([organizationId, resource, resourceId])
+  @@index([organizationId, severity, createdAt])
+}
