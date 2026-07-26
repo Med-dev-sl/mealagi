@@ -2,7 +2,6 @@ import {
   Injectable,
   UnauthorizedException,
   ForbiddenException,
-  BadRequestException,
   Logger,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
@@ -233,6 +232,38 @@ export class AuthService {
       refreshToken: rawRefreshToken,
       expiresIn,
     };
+  }
+
+  async logout(userId: string, organizationId: string, accessToken: string): Promise<void> {
+    const tokenHash = this.hashSha256(accessToken);
+
+    const session = await this.prisma.session.findUnique({
+      where: { tokenHash },
+    });
+
+    if (!session || session.isRevoked) {
+      throw new UnauthorizedException("Session not found or already revoked");
+    }
+
+    await this.prisma.session.update({
+      where: { id: session.id },
+      data: {
+        isRevoked: true,
+        revokedAt: new Date(),
+        refreshTokenHash: null,
+      },
+    });
+
+    await this.prisma.auditLog.create({
+      data: {
+        organizationId,
+        userId,
+        action: AUDIT_ACTION.LOGOUT,
+        resource: "auth",
+        severity: AuditSeverity.INFO,
+        metadata: { sessionId: session.id },
+      },
+    });
   }
 
   generateAccessToken(payload: JwtPayload): string {
