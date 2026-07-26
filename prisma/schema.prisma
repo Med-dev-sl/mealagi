@@ -181,6 +181,14 @@ model User {
   assumptionsCreated Assumption[]  @relation("AssumptionCreatedBy")
   risksCreated       Risk[]        @relation("RiskCreatedBy")
 
+  indicatorsResponsibleFor Indicator[] @relation("IndicatorResponsible")
+  indicatorsCreated        Indicator[] @relation("IndicatorCreatedBy")
+  indicatorsUpdated        Indicator[] @relation("IndicatorUpdatedBy")
+  baselinesCreated         Baseline[]  @relation("BaselineCreatedBy")
+  targetsCreated           Target[]    @relation("TargetCreatedBy")
+  disaggregationsCreated   Disaggregation[] @relation("DisaggregationCreatedBy")
+  movsCreated              MeansOfVerification[] @relation("MovCreatedBy")
+
   userRoles  UserRole[]
   sessions   Session[]
   auditLogs  AuditLog[]
@@ -459,6 +467,8 @@ model Output {
   outcome  Outcome  @relation(fields: [outcomeId], references: [id], onDelete: Cascade)
   createdBy User?    @relation("OutputCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
 
+  indicators Indicator[]
+
   @@index([outcomeId])
   @@index([deletedAt])
 }
@@ -494,5 +504,113 @@ model Risk {
   createdBy User? @relation("RiskCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
 
   @@index([level, referenceId])
+  @@index([deletedAt])
+}
+
+model Indicator {
+  id                 String            @id @default(uuid())
+  outputId           String
+  code               String
+  name               String
+  description        String?
+  indicatorType      String?
+  unitOfMeasure      String?
+  reportingFrequency ReportingFrequency @default(ANNUAL)
+  dataSource         String?
+  calculationMethod  String?
+  responsiblePersonId String?
+  status             IndicatorStatus   @default(ACTIVE)
+  createdById        String?
+  updatedById        String?
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  deletedAt          DateTime?
+
+  output            Output            @relation(fields: [outputId], references: [id], onDelete: Cascade)
+  responsiblePerson User?             @relation("IndicatorResponsible", fields: [responsiblePersonId], references: [id], onDelete: SetNull)
+  createdBy         User?             @relation("IndicatorCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy         User?             @relation("IndicatorUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  baselines           Baseline[]
+  targets             Target[]
+  disaggregations     Disaggregation[]
+  meansOfVerifications MeansOfVerification[]
+
+  @@index([outputId])
+  @@index([code])
+  @@index([status])
+  @@index([indicatorType])
+  @@index([reportingFrequency])
+  @@index([deletedAt])
+}
+
+model Baseline {
+  id          String   @id @default(uuid())
+  indicatorId String
+  value       String
+  baselineDate DateTime
+  source      String?
+  verifiedBy  String?
+  createdById String?
+  createdAt   DateTime @default(now())
+  deletedAt   DateTime?
+
+  indicator  Indicator @relation(fields: [indicatorId], references: [id], onDelete: Cascade)
+  createdBy  User?     @relation("BaselineCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@unique([indicatorId])
+  @@index([indicatorId])
+  @@index([deletedAt])
+}
+
+model Target {
+  id              String   @id @default(uuid())
+  indicatorId     String
+  reportingPeriod String
+  targetValue     String
+  targetDate      DateTime
+  createdById     String?
+  createdAt       DateTime @default(now())
+  deletedAt       DateTime?
+
+  indicator Indicator @relation(fields: [indicatorId], references: [id], onDelete: Cascade)
+  createdBy  User?    @relation("TargetCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([indicatorId])
+  @@index([deletedAt])
+}
+
+model Disaggregation {
+  id          String @id @default(uuid())
+  indicatorId String
+  category    String
+  value       String
+  createdById String?
+  createdAt   DateTime @default(now())
+  deletedAt   DateTime?
+
+  indicator Indicator @relation(fields: [indicatorId], references: [id], onDelete: Cascade)
+  createdBy  User?    @relation("DisaggregationCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([indicatorId])
+  @@index([category])
+  @@index([deletedAt])
+}
+
+model MeansOfVerification {
+  id              String @id @default(uuid())
+  indicatorId     String
+  title           String
+  description     String?
+  documentType    String?
+  storageLocation String?
+  createdById     String?
+  createdAt       DateTime @default(now())
+  deletedAt       DateTime?
+
+  indicator Indicator @relation(fields: [indicatorId], references: [id], onDelete: Cascade)
+  createdBy  User?    @relation("MovCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([indicatorId])
   @@index([deletedAt])
 }
