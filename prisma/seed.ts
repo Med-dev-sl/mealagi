@@ -1,5 +1,7 @@
 import { PrismaClient, SubscriptionPlan, Status, AuditSeverity } from "@prisma/client";
+import { PrismaPg } from "@prisma/adapter-pg";
 import * as bcrypt from "bcrypt";
+import { config } from "dotenv";
 
 import {
   PERMISSION,
@@ -11,7 +13,10 @@ import {
   type RoleName,
 } from "../src/core/constants";
 
-const prisma = new PrismaClient();
+config({ path: ".env" });
+
+const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
+const prisma = new PrismaClient({ adapter });
 
 async function main(): Promise<void> {
   console.log("🌱 Seeding database...");
