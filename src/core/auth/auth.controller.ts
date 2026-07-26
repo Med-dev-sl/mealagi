@@ -5,6 +5,8 @@ import { AuthService } from "./auth.service";
 import { Public } from "../../shared/decorators/public.decorator";
 import { LoginDto } from "./dto/login.dto";
 import { LoginResponseDto } from "./dto/login-response.dto";
+import { RefreshTokenDto } from "./dto/refresh-token.dto";
+import { RefreshResponseDto } from "./dto/refresh-response.dto";
 
 @ApiTags("Authentication")
 @Controller("auth")
@@ -30,5 +32,27 @@ export class AuthController {
     const ipAddress = req.ip;
     const userAgent = req.headers["user-agent"];
     return this.authService.login(dto, ipAddress, userAgent);
+  }
+
+  @Public()
+  @Post("refresh")
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: "Issue new access and refresh tokens using a valid refresh token" })
+  @ApiBody({ type: RefreshTokenDto })
+  @ApiResponse({
+    status: 200,
+    description: "Tokens refreshed successfully",
+    type: RefreshResponseDto,
+  })
+  @ApiResponse({ status: 400, description: "Invalid request body" })
+  @ApiResponse({ status: 401, description: "Invalid or expired refresh token" })
+  @ApiResponse({ status: 403, description: "Account or organization is not active" })
+  async refresh(
+    @Body() dto: RefreshTokenDto,
+    @Req() req: Request,
+  ): Promise<RefreshResponseDto> {
+    const ipAddress = req.ip;
+    const userAgent = req.headers["user-agent"];
+    return this.authService.refresh(dto, ipAddress, userAgent);
   }
 }

@@ -2,6 +2,7 @@ import {
   Injectable,
   UnauthorizedException,
   ForbiddenException,
+  BadRequestException,
   Logger,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
@@ -12,6 +13,7 @@ import { Status, AuditSeverity } from "@prisma/client";
 import * as bcrypt from "bcrypt";
 import * as crypto from "node:crypto";
 import { LoginDto } from "./dto/login.dto";
+import { RefreshTokenDto } from "./dto/refresh-token.dto";
 import type { JwtPayload } from "./interfaces/jwt-payload.interface";
 
 interface PermissionEntry {
@@ -19,15 +21,23 @@ interface PermissionEntry {
   action: string;
 }
 
+interface RefreshTokenPayload {
+  sub: string;
+  sessionId: string;
+}
+
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
+  private readonly refreshExpiresInMs: number;
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
-  ) {}
+  ) {
+    this.refreshExpiresInMs = 7 * 24 * 60 * 60 * 1000;
+  }
 
   async login(dto: LoginDto, ipAddress?: string, userAgent?: string) {
     const user = await this.prisma.user.findUnique({
@@ -76,9 +86,8 @@ export class AuthService {
       data: { lastLogin: new Date() },
     });
 
-    const expiresIn = this.configService.get<number>(
-      "jwt.expiresIn",
-      900,
+    const expiresIn = this.parseExpiresIn(
+      this.configService.get<string>("jwt.expiresIn", "15m"),
     );
 
     await this.prisma.auditLog.create({
@@ -117,6 +126,115 @@ export class AuthService {
     };
   }
 
+  async refresh(dto: RefreshTokenDto, ipAddress?: string, userAgent?: string) {
+    let payload: RefreshTokenPayload;
+    try {
+      const secret = this.configService.getOrThrow<string>("jwt.refreshSecret");
+      payload = this.jwtService.verify<RefreshTokenPayload>(dto.refreshToken, {
+        secret,
+      });
+    } catch {
+      throw new UnauthorizedException("Invalid refresh token");
+    }
+
+    const session = await this.prisma.session.findUnique({
+      where: { id: payload.sessionId },
+    });
+
+    if (!session) {
+      throw new UnauthorizedException("Session not found");
+    }
+
+    if (session.isRevoked || session.revokedAt) {
+      throw new UnauthorizedException("Session has been revoked");
+    }
+
+    if (session.expiresAt < new Date()) {
+      throw new UnauthorizedException("Refresh token has expired");
+    }
+
+    if (!session.refreshTokenHash) {
+      throw new UnauthorizedException("Invalid refresh token");
+    }
+
+    const tokenMatches = await bcrypt.compare(
+      dto.refreshToken,
+      session.refreshTokenHash,
+    );
+    if (!tokenMatches) {
+      throw new UnauthorizedException("Invalid refresh token");
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: session.userId },
+      include: { organization: true },
+    });
+
+    if (!user || user.deletedAt) {
+      throw new UnauthorizedException("User not found");
+    }
+
+    if (user.status !== Status.ACTIVE) {
+      throw new ForbiddenException("Account is not active");
+    }
+
+    const org = user.organization;
+    if (org.status !== Status.ACTIVE || org.deletedAt) {
+      throw new ForbiddenException("Organization is not active");
+    }
+
+    const accessToken = this.jwtService.sign(
+      { sub: user.id, organizationId: user.organizationId } as unknown as Record<string, unknown>,
+      {
+        expiresIn: this.configService.get<string>("jwt.expiresIn", "15m") as never,
+      },
+    );
+
+    const rawRefreshToken = this.jwtService.sign(
+      { sub: user.id, sessionId: session.id } as unknown as Record<string, unknown>,
+      {
+        secret: this.configService.getOrThrow<string>("jwt.refreshSecret"),
+        expiresIn: this.configService.get<string>("jwt.refreshExpiresIn", "7d") as never,
+      },
+    );
+
+    const refreshTokenHash = await bcrypt.hash(rawRefreshToken, 10);
+    const tokenHash = this.hashSha256(accessToken);
+
+    await this.prisma.session.update({
+      where: { id: session.id },
+      data: {
+        tokenHash,
+        refreshTokenHash,
+        ipAddress: ipAddress ?? session.ipAddress,
+        userAgent: userAgent ?? session.userAgent,
+      },
+    });
+
+    await this.prisma.auditLog.create({
+      data: {
+        organizationId: user.organizationId,
+        userId: user.id,
+        action: AUDIT_ACTION.TOKEN_REFRESHED,
+        resource: "auth",
+        severity: AuditSeverity.INFO,
+        metadata: { sessionId: session.id },
+        ipAddress,
+        userAgent,
+      },
+    });
+
+    const expiresIn = this.parseExpiresIn(
+      this.configService.get<string>("jwt.expiresIn", "15m"),
+    );
+
+    return {
+      accessToken,
+      refreshToken: rawRefreshToken,
+      expiresIn,
+    };
+  }
+
   generateAccessToken(payload: JwtPayload): string {
     const expiresIn = this.configService.get<string>("jwt.expiresIn", "15m");
     return this.jwtService.sign(payload as unknown as Record<string, unknown>, {
@@ -147,6 +265,49 @@ export class AuthService {
     } catch {
       return null;
     }
+  }
+
+  private async createSession(
+    userId: string,
+    organizationId: string,
+    ipAddress?: string,
+    userAgent?: string,
+  ): Promise<{ accessToken: string; refreshToken: string }> {
+    const accessToken = this.jwtService.sign(
+      { sub: userId, organizationId } as unknown as Record<string, unknown>,
+      {
+        expiresIn: this.configService.get<string>("jwt.expiresIn", "15m") as never,
+      },
+    );
+
+    const expiresAt = new Date(Date.now() + this.refreshExpiresInMs);
+
+    const session = await this.prisma.session.create({
+      data: {
+        userId,
+        tokenHash: this.hashSha256(accessToken),
+        ipAddress,
+        userAgent,
+        expiresAt,
+      },
+    });
+
+    const rawRefreshToken = this.jwtService.sign(
+      { sub: userId, sessionId: session.id } as unknown as Record<string, unknown>,
+      {
+        secret: this.configService.getOrThrow<string>("jwt.refreshSecret"),
+        expiresIn: this.configService.get<string>("jwt.refreshExpiresIn", "7d") as never,
+      },
+    );
+
+    const refreshTokenHash = await bcrypt.hash(rawRefreshToken, 10);
+
+    await this.prisma.session.update({
+      where: { id: session.id },
+      data: { refreshTokenHash },
+    });
+
+    return { accessToken, refreshToken: rawRefreshToken };
   }
 
   private async logFailed(
@@ -204,41 +365,20 @@ export class AuthService {
     });
   }
 
-  private async createSession(
-    userId: string,
-    organizationId: string,
-    ipAddress?: string,
-    userAgent?: string,
-  ): Promise<{ accessToken: string; refreshToken: string }> {
-    const accessToken = this.jwtService.sign(
-      { sub: userId, organizationId } as unknown as Record<string, unknown>,
-      {
-        expiresIn: this.configService.get<string>("jwt.expiresIn", "15m") as never,
-      },
-    );
-
-    const rawRefreshToken = crypto.randomBytes(48).toString("hex");
-    const tokenHash = this.hashToken(accessToken);
-    const refreshTokenHash = this.hashToken(rawRefreshToken);
-
-    const refreshExpiresInMs = 7 * 24 * 60 * 60 * 1000;
-    const expiresAt = new Date(Date.now() + refreshExpiresInMs);
-
-    await this.prisma.session.create({
-      data: {
-        userId,
-        tokenHash,
-        refreshTokenHash,
-        ipAddress,
-        userAgent,
-        expiresAt,
-      },
-    });
-
-    return { accessToken, refreshToken: rawRefreshToken };
+  private parseExpiresIn(value: string): number {
+    const match = value.match(/^(\d+)(s|m|h|d)$/);
+    if (!match) return 900;
+    const num = parseInt(match[1], 10);
+    switch (match[2]) {
+      case "s": return num;
+      case "m": return num * 60;
+      case "h": return num * 3600;
+      case "d": return num * 86400;
+      default: return 900;
+    }
   }
 
-  private hashToken(token: string): string {
+  private hashSha256(token: string): string {
     return crypto.createHash("sha256").update(token).digest("hex");
   }
 }

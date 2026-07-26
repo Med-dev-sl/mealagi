@@ -45,11 +45,25 @@ async function bootstrap(): Promise<void> {
     credentials: true,
   });
 
-  app.use(helmet());
-  app.use(compression());
-
   const swaggerDoc = SwaggerModule.createDocument(app, swaggerConfig);
   SwaggerModule.setup("api/docs", app, swaggerDoc);
+
+  app.use(
+    helmet({
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: ["'self'"],
+          styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+          fontSrc: ["'self'", "https://fonts.gstatic.com"],
+          imgSrc: ["'self'", "data:", "validator.swagger.io"],
+          scriptSrc: ["'self'", "'unsafe-inline'"],
+        },
+      },
+      crossOriginEmbedderPolicy: false,
+      crossOriginResourcePolicy: { policy: "cross-origin" },
+    }),
+  );
+  app.use(compression());
 
   const port = configService.get<number>("app.port", 4000);
 
