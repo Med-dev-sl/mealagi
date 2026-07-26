@@ -1,15 +1,15 @@
 import { Module, MiddlewareConsumer, NestModule } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
 
-import appConfig from "./config/app.config";
-import databaseConfig from "./config/database.config";
-import jwtConfig from "./config/jwt.config";
+import appConfig from "./core/config/app.config";
+import databaseConfig from "./core/config/database.config";
+import jwtConfig from "./core/config/jwt.config";
 
-import { PrismaModule } from "./prisma/prisma.module";
+import { PrismaModule } from "./core/database/prisma.module";
 import { HealthModule } from "./modules/health/health.module";
-import { AuthModule } from "./modules/auth/auth.module";
+import { AuthModule } from "./core/auth/auth.module";
 
-import { RequestLoggerMiddleware } from "./common/middleware/request-logger.middleware";
+import { RequestLoggerMiddleware } from "./shared/middleware/request-logger.middleware";
 
 @Module({
   imports: [

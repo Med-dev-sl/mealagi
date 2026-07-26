@@ -6,10 +6,10 @@ import helmet from "helmet";
 import compression from "compression";
 
 import { AppModule } from "./app.module";
-import { swaggerConfig } from "./config/swagger.config";
-import { AllExceptionsFilter } from "./common/filters/all-exceptions.filter";
-import { LoggingInterceptor } from "./common/interceptors/logging.interceptor";
-import { TransformInterceptor } from "./common/interceptors/transform.interceptor";
+import { swaggerConfig } from "./core/config/swagger.config";
+import { AllExceptionsFilter } from "./shared/filters/all-exceptions.filter";
+import { LoggingInterceptor } from "./shared/interceptors/logging.interceptor";
+import { TransformInterceptor } from "./shared/interceptors/transform.interceptor";
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule, {

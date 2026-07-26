@@ -5,7 +5,7 @@ import {
   HealthCheckResult,
   PrismaHealthIndicator,
 } from "@nestjs/terminus";
-import { PrismaService } from "../../prisma/prisma.service";
+import { PrismaService } from "../../core/database/prisma.service";
 
 @Controller("health")
 export class HealthController {

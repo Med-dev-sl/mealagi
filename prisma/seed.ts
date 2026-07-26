@@ -9,7 +9,7 @@ import {
   SYSTEM_ROLES,
   AUDIT_ACTION,
   type RoleName,
-} from "../src/constants";
+} from "../src/core/constants";
 
 const prisma = new PrismaClient();
 
