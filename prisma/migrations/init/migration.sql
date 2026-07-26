@@ -1,3 +1,6 @@
+-- CreateSchema
+CREATE SCHEMA IF NOT EXISTS "public";
+
 -- CreateEnum
 CREATE TYPE "Status" AS ENUM ('ACTIVE', 'INACTIVE', 'SUSPENDED', 'DELETED');
 
@@ -9,7 +12,7 @@ CREATE TYPE "AuditSeverity" AS ENUM ('DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITI
 
 -- CreateTable
 CREATE TABLE "Organization" (
-    "id" UUID NOT NULL DEFAULT gen_random_uuid(),
+    "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "slug" TEXT NOT NULL,
     "code" TEXT NOT NULL,
@@ -20,19 +23,19 @@ CREATE TABLE "Organization" (
     "logo" TEXT,
     "subscriptionPlan" "SubscriptionPlan" NOT NULL DEFAULT 'FREE',
     "status" "Status" NOT NULL DEFAULT 'ACTIVE',
-    "createdById" UUID,
-    "updatedById" UUID,
-    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMPTZ NOT NULL,
-    "deletedAt" TIMESTAMPTZ,
+    "createdById" TEXT,
+    "updatedById" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "deletedAt" TIMESTAMP(3),
 
     CONSTRAINT "Organization_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
 CREATE TABLE "OrganizationSettings" (
-    "id" UUID NOT NULL DEFAULT gen_random_uuid(),
-    "organizationId" UUID NOT NULL,
+    "id" TEXT NOT NULL,
+    "organizationId" TEXT NOT NULL,
     "locale" TEXT NOT NULL DEFAULT 'en',
     "timezone" TEXT NOT NULL DEFAULT 'UTC',
     "dateFormat" TEXT NOT NULL DEFAULT 'YYYY-MM-DD',
@@ -42,18 +45,18 @@ CREATE TABLE "OrganizationSettings" (
     "maxLoginAttempts" INTEGER DEFAULT 5,
     "passwordPolicy" JSONB DEFAULT '{}',
     "metadata" JSONB DEFAULT '{}',
-    "createdById" UUID,
-    "updatedById" UUID,
-    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMPTZ NOT NULL,
+    "createdById" TEXT,
+    "updatedById" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "OrganizationSettings_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
 CREATE TABLE "User" (
-    "id" UUID NOT NULL DEFAULT gen_random_uuid(),
-    "organizationId" UUID NOT NULL,
+    "id" TEXT NOT NULL,
+    "organizationId" TEXT NOT NULL,
     "firstName" TEXT NOT NULL,
     "lastName" TEXT NOT NULL,
     "email" TEXT NOT NULL,
@@ -63,66 +66,66 @@ CREATE TABLE "User" (
     "jobTitle" TEXT,
     "status" "Status" NOT NULL DEFAULT 'ACTIVE',
     "emailVerified" BOOLEAN NOT NULL DEFAULT false,
-    "lastLogin" TIMESTAMPTZ,
-    "createdById" UUID,
-    "updatedById" UUID,
-    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMPTZ NOT NULL,
-    "deletedAt" TIMESTAMPTZ,
+    "lastLogin" TIMESTAMP(3),
+    "createdById" TEXT,
+    "updatedById" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "deletedAt" TIMESTAMP(3),
 
     CONSTRAINT "User_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
 CREATE TABLE "Role" (
-    "id" UUID NOT NULL DEFAULT gen_random_uuid(),
+    "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "description" TEXT,
-    "organizationId" UUID NOT NULL,
+    "organizationId" TEXT NOT NULL,
     "isSystem" BOOLEAN NOT NULL DEFAULT false,
-    "createdById" UUID,
-    "updatedById" UUID,
-    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMPTZ NOT NULL,
-    "deletedAt" TIMESTAMPTZ,
+    "createdById" TEXT,
+    "updatedById" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "deletedAt" TIMESTAMP(3),
 
     CONSTRAINT "Role_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
 CREATE TABLE "Permission" (
-    "id" UUID NOT NULL DEFAULT gen_random_uuid(),
+    "id" TEXT NOT NULL,
     "resource" TEXT NOT NULL,
     "action" TEXT NOT NULL,
     "description" TEXT,
     "isSystem" BOOLEAN NOT NULL DEFAULT false,
-    "createdById" UUID,
-    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "deletedAt" TIMESTAMPTZ,
+    "createdById" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "deletedAt" TIMESTAMP(3),
 
     CONSTRAINT "Permission_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
 CREATE TABLE "RolePermission" (
-    "roleId" UUID NOT NULL,
-    "permissionId" UUID NOT NULL,
+    "roleId" TEXT NOT NULL,
+    "permissionId" TEXT NOT NULL,
 
     CONSTRAINT "RolePermission_pkey" PRIMARY KEY ("roleId","permissionId")
 );
 
 -- CreateTable
 CREATE TABLE "UserRole" (
-    "userId" UUID NOT NULL,
-    "roleId" UUID NOT NULL,
+    "userId" TEXT NOT NULL,
+    "roleId" TEXT NOT NULL,
 
     CONSTRAINT "UserRole_pkey" PRIMARY KEY ("userId","roleId")
 );
 
 -- CreateTable
 CREATE TABLE "Session" (
-    "id" UUID NOT NULL DEFAULT gen_random_uuid(),
-    "userId" UUID NOT NULL,
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
     "tokenHash" TEXT NOT NULL,
     "refreshTokenHash" TEXT,
     "ipAddress" TEXT,
@@ -130,18 +133,18 @@ CREATE TABLE "Session" (
     "deviceFingerprint" TEXT,
     "location" TEXT,
     "isRevoked" BOOLEAN NOT NULL DEFAULT false,
-    "revokedAt" TIMESTAMPTZ,
-    "expiresAt" TIMESTAMPTZ NOT NULL,
-    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "revokedAt" TIMESTAMP(3),
+    "expiresAt" TIMESTAMP(3) NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "Session_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
 CREATE TABLE "AuditLog" (
-    "id" UUID NOT NULL DEFAULT gen_random_uuid(),
-    "organizationId" UUID NOT NULL,
-    "userId" UUID,
+    "id" TEXT NOT NULL,
+    "organizationId" TEXT NOT NULL,
+    "userId" TEXT,
     "action" TEXT NOT NULL,
     "resource" TEXT NOT NULL,
     "resourceId" TEXT,
@@ -152,7 +155,7 @@ CREATE TABLE "AuditLog" (
     "requestId" TEXT,
     "ipAddress" TEXT,
     "userAgent" TEXT,
-    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "AuditLog_pkey" PRIMARY KEY ("id")
 );
@@ -162,6 +165,12 @@ CREATE UNIQUE INDEX "Organization_slug_key" ON "Organization"("slug");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Organization_code_key" ON "Organization"("code");
+
+-- CreateIndex
+CREATE INDEX "Organization_slug_idx" ON "Organization"("slug");
+
+-- CreateIndex
+CREATE INDEX "Organization_code_idx" ON "Organization"("code");
 
 -- CreateIndex
 CREATE INDEX "Organization_status_idx" ON "Organization"("status");
@@ -200,9 +209,6 @@ CREATE INDEX "User_organizationId_status_idx" ON "User"("organizationId", "statu
 CREATE INDEX "User_organizationId_email_idx" ON "User"("organizationId", "email");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Role_name_organizationId_key" ON "Role"("name", "organizationId");
-
--- CreateIndex
 CREATE INDEX "Role_organizationId_idx" ON "Role"("organizationId");
 
 -- CreateIndex
@@ -212,7 +218,7 @@ CREATE INDEX "Role_organizationId_isSystem_idx" ON "Role"("organizationId", "isS
 CREATE INDEX "Role_deletedAt_idx" ON "Role"("deletedAt");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Permission_resource_action_key" ON "Permission"("resource", "action");
+CREATE UNIQUE INDEX "Role_name_organizationId_key" ON "Role"("name", "organizationId");
 
 -- CreateIndex
 CREATE INDEX "Permission_resource_idx" ON "Permission"("resource");
@@ -222,6 +228,9 @@ CREATE INDEX "Permission_action_idx" ON "Permission"("action");
 
 -- CreateIndex
 CREATE INDEX "Permission_deletedAt_idx" ON "Permission"("deletedAt");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Permission_resource_action_key" ON "Permission"("resource", "action");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Session_tokenHash_key" ON "Session"("tokenHash");
@@ -285,21 +294,35 @@ CREATE INDEX "AuditLog_organizationId_severity_createdAt_idx" ON "AuditLog"("org
 
 -- AddForeignKey
 ALTER TABLE "Organization" ADD CONSTRAINT "Organization_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "Organization" ADD CONSTRAINT "Organization_updatedById_fkey" FOREIGN KEY ("updatedById") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "OrganizationSettings" ADD CONSTRAINT "OrganizationSettings_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "OrganizationSettings" ADD CONSTRAINT "OrganizationSettings_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "OrganizationSettings" ADD CONSTRAINT "OrganizationSettings_updatedById_fkey" FOREIGN KEY ("updatedById") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "User" ADD CONSTRAINT "User_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "User" ADD CONSTRAINT "User_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "User" ADD CONSTRAINT "User_updatedById_fkey" FOREIGN KEY ("updatedById") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Role" ADD CONSTRAINT "Role_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "Role" ADD CONSTRAINT "Role_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "Role" ADD CONSTRAINT "Role_updatedById_fkey" FOREIGN KEY ("updatedById") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -307,10 +330,14 @@ ALTER TABLE "Permission" ADD CONSTRAINT "Permission_createdById_fkey" FOREIGN KE
 
 -- AddForeignKey
 ALTER TABLE "RolePermission" ADD CONSTRAINT "RolePermission_roleId_fkey" FOREIGN KEY ("roleId") REFERENCES "Role"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "RolePermission" ADD CONSTRAINT "RolePermission_permissionId_fkey" FOREIGN KEY ("permissionId") REFERENCES "Permission"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "UserRole" ADD CONSTRAINT "UserRole_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "UserRole" ADD CONSTRAINT "UserRole_roleId_fkey" FOREIGN KEY ("roleId") REFERENCES "Role"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -318,4 +345,6 @@ ALTER TABLE "Session" ADD CONSTRAINT "Session_userId_fkey" FOREIGN KEY ("userId"
 
 -- AddForeignKey
 ALTER TABLE "AuditLog" ADD CONSTRAINT "AuditLog_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "AuditLog" ADD CONSTRAINT "AuditLog_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;

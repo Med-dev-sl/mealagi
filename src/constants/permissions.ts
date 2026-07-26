@@ -27,6 +27,11 @@ export const PERMISSION = {
   INDICATOR_UPDATE: "indicator:update",
   INDICATOR_DELETE: "indicator:delete",
 
+  BENEFICIARY_CREATE: "beneficiary:create",
+  BENEFICIARY_READ: "beneficiary:read",
+  BENEFICIARY_UPDATE: "beneficiary:update",
+  BENEFICIARY_DELETE: "beneficiary:delete",
+
   DATA_COLLECT: "data:collect",
   DATA_READ: "data:read",
   DATA_UPDATE: "data:update",
@@ -77,6 +82,11 @@ export const PERMISSION_DESCRIPTIONS: Record<Permission, string> = {
   [PERMISSION.INDICATOR_READ]: "Read indicators",
   [PERMISSION.INDICATOR_UPDATE]: "Update indicators",
   [PERMISSION.INDICATOR_DELETE]: "Delete indicators",
+
+  [PERMISSION.BENEFICIARY_CREATE]: "Create beneficiaries",
+  [PERMISSION.BENEFICIARY_READ]: "Read beneficiaries",
+  [PERMISSION.BENEFICIARY_UPDATE]: "Update beneficiaries",
+  [PERMISSION.BENEFICIARY_DELETE]: "Delete beneficiaries",
 
   [PERMISSION.DATA_COLLECT]: "Collect monitoring data",
   [PERMISSION.DATA_READ]: "Read monitoring data",

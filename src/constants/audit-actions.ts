@@ -25,6 +25,10 @@ export const AUDIT_ACTION = {
   ORG_UPDATED: "ORG_UPDATED",
   ORG_DELETED: "ORG_DELETED",
   ORG_SETTINGS_UPDATED: "ORG_SETTINGS_UPDATED",
+
+  // ─── System ─────────────────────────────────────────────
+  SYSTEM_INITIALIZED: "SYSTEM_INITIALIZED",
+  SYSTEM_CONFIGURED: "SYSTEM_CONFIGURED",
 } as const;
 
 export type AuditAction = (typeof AUDIT_ACTION)[keyof typeof AUDIT_ACTION];

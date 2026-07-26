@@ -1,4 +1,4 @@
-import { PrismaClient, SubscriptionPlan, Status } from "@prisma/client";
+import { PrismaClient, SubscriptionPlan, Status, AuditSeverity } from "@prisma/client";
 import * as bcrypt from "bcrypt";
 
 import {
@@ -7,132 +7,186 @@ import {
   ROLE,
   ROLE_PERMISSIONS,
   SYSTEM_ROLES,
+  AUDIT_ACTION,
   type RoleName,
 } from "../src/constants";
 
 const prisma = new PrismaClient();
 
-async function main() {
-  console.log("Seeding database...");
+async function main(): Promise<void> {
+  console.log("🌱 Seeding database...");
 
-  const org = await prisma.organization.upsert({
-    where: { code: "default" },
-    update: {},
-    create: {
-      name: "Default Organization",
-      slug: "default",
-      code: "default",
-      email: "admin@agimeal.com",
-      subscriptionPlan: SubscriptionPlan.ENTERPRISE,
-      status: Status.ACTIVE,
-    },
-  });
+  await prisma.$transaction(async (tx) => {
+    // ── Organization ────────────────────────────────────────
+    const org = await tx.organization.upsert({
+      where: { code: "SYSTEM" },
+      update: {},
+      create: {
+        name: "AI MEAL Platform",
+        slug: "system",
+        code: "SYSTEM",
+        email: "admin@aimeal.local",
+        subscriptionPlan: SubscriptionPlan.ENTERPRISE,
+        status: Status.ACTIVE,
+      },
+    });
 
-  await prisma.organizationSettings.upsert({
-    where: { organizationId: org.id },
-    update: {},
-    create: { organizationId: org.id },
-  });
+    console.log(`  Organization: ${org.name}`);
 
-  console.log(`Organization: ${org.name} (${org.id})`);
-
-  const permissionRecords = await Promise.all(
-    Object.values(PERMISSION).map((perm) => {
-      const [resource, action] = perm.split(":");
-      return prisma.permission.upsert({
-        where: { resource_action: { resource, action } },
-        update: {},
-        create: {
-          resource,
-          action,
-          description: PERMISSION_DESCRIPTIONS[perm],
-          isSystem: true,
+    // ── Organization Settings ────────────────────────────────
+    await tx.organizationSettings.upsert({
+      where: { organizationId: org.id },
+      update: {},
+      create: {
+        organizationId: org.id,
+        locale: "en",
+        timezone: "UTC",
+        dateFormat: "YYYY-MM-DD",
+        currency: "USD",
+        featureFlags: {},
+        sessionTimeoutMs: 3600000,
+        maxLoginAttempts: 5,
+        passwordPolicy: {
+          minLength: 8,
+          requireUppercase: true,
+          requireLowercase: true,
+          requireNumber: true,
+          requireSpecialChar: true,
         },
-      });
-    }),
-  );
+      },
+    });
 
-  console.log(`Permissions: ${permissionRecords.length} created`);
+    console.log("  Organization settings: created");
 
-  const permMap = new Map<string, string>();
-  for (const p of permissionRecords) {
-    permMap.set(`${p.resource}:${p.action}`, p.id);
-  }
-
-  const roleNames = Object.values(ROLE);
-  const createdRoles = await Promise.all(
-    roleNames.map((name) =>
-      prisma.role.upsert({
-        where: { name_organizationId: { name, organizationId: org.id } },
-        update: {},
-        create: {
-          name,
-          organizationId: org.id,
-          isSystem: SYSTEM_ROLES.includes(name),
-        },
+    // ── Permissions ─────────────────────────────────────────
+    const permissionRecords = await Promise.all(
+      Object.values(PERMISSION).map((perm) => {
+        const [resource, action] = perm.split(":");
+        return tx.permission.upsert({
+          where: { resource_action: { resource, action } },
+          update: {},
+          create: {
+            resource,
+            action,
+            description: PERMISSION_DESCRIPTIONS[perm],
+            isSystem: true,
+          },
+        });
       }),
-    ),
-  );
+    );
 
-  console.log(`Roles: ${createdRoles.length} created`);
+    const permMap = new Map<string, string>();
+    for (const p of permissionRecords) {
+      permMap.set(`${p.resource}:${p.action}`, p.id);
+    }
 
-  for (const role of createdRoles) {
-    const roleName = role.name as RoleName;
-    const permissions = ROLE_PERMISSIONS[roleName];
-    if (!permissions) continue;
+    console.log(`  Permissions: ${permissionRecords.length} created`);
 
-    const permissionIds: string[] = permissions
-      .map((key: string) => permMap.get(key))
-      .filter((id): id is string => id !== undefined);
+    // ── Roles ────────────────────────────────────────────────
+    const roleNames = Object.values(ROLE);
+    const createdRoles = await Promise.all(
+      roleNames.map((name) =>
+        tx.role.upsert({
+          where: { name_organizationId: { name, organizationId: org.id } },
+          update: {},
+          create: {
+            name,
+            organizationId: org.id,
+            isSystem: SYSTEM_ROLES.includes(name as RoleName),
+          },
+        }),
+      ),
+    );
 
-    if (permissionIds.length > 0) {
-      await prisma.rolePermission.createMany({
-        data: permissionIds.map((permissionId: string) => ({
-          roleId: role.id,
-          permissionId,
-        })),
-        skipDuplicates: true,
+    const roleMap = new Map<string, string>();
+    for (const r of createdRoles) {
+      roleMap.set(r.name, r.id);
+    }
+
+    console.log(`  Roles: ${createdRoles.length} created`);
+
+    // ── Role-Permission Assignments ──────────────────────────
+    let assignmentCount = 0;
+    for (const [roleName, permissions] of Object.entries(ROLE_PERMISSIONS)) {
+      const roleId = roleMap.get(roleName);
+      if (!roleId) continue;
+
+      const permissionIds = permissions
+        .map((key: string) => permMap.get(key))
+        .filter((id): id is string => id !== undefined);
+
+      if (permissionIds.length > 0) {
+        await tx.rolePermission.createMany({
+          data: permissionIds.map((permissionId: string) => ({
+            roleId,
+            permissionId,
+          })),
+          skipDuplicates: true,
+        });
+        assignmentCount += permissionIds.length;
+      }
+    }
+
+    console.log(`  Role-permission assignments: ${assignmentCount}`);
+
+    // ── Super Administrator ──────────────────────────────────
+    const passwordHash = await bcrypt.hash("Admin@123456", 12);
+
+    const admin = await tx.user.upsert({
+      where: { email: "admin@aimeal.local" },
+      update: {},
+      create: {
+        organizationId: org.id,
+        firstName: "System",
+        lastName: "Administrator",
+        email: "admin@aimeal.local",
+        passwordHash,
+        jobTitle: "System Administrator",
+        status: Status.ACTIVE,
+        emailVerified: true,
+      },
+    });
+
+    console.log(`  Super Administrator: ${admin.email}`);
+
+    // ── Assign SUPER_ADMIN Role ──────────────────────────────
+    const superAdminRoleId = roleMap.get(ROLE.SUPER_ADMIN);
+    if (superAdminRoleId) {
+      await tx.userRole.upsert({
+        where: { userId_roleId: { userId: admin.id, roleId: superAdminRoleId } },
+        update: {},
+        create: { userId: admin.id, roleId: superAdminRoleId },
       });
     }
-  }
 
-  console.log("Role-permission assignments complete");
+    console.log("  SUPER_ADMIN role: assigned");
 
-  const passwordHash = await bcrypt.hash("Admin123!", 12);
+    // ── SYSTEM_INITIALIZED Audit Log ─────────────────────────
+    await tx.auditLog.create({
+      data: {
+        organizationId: org.id,
+        userId: admin.id,
+        action: AUDIT_ACTION.SYSTEM_INITIALIZED,
+        resource: "system",
+        resourceId: org.id,
+        severity: AuditSeverity.INFO,
+        metadata: {
+          version: "1.0.0",
+          platform: "AI MEAL",
+          timestamp: new Date().toISOString(),
+        },
+      },
+    });
 
-  const superAdmin = await prisma.user.upsert({
-    where: { email: "admin@agimeal.com" },
-    update: {},
-    create: {
-      organizationId: org.id,
-      firstName: "Super",
-      lastName: "Admin",
-      email: "admin@agimeal.com",
-      passwordHash,
-      jobTitle: "System Administrator",
-      status: Status.ACTIVE,
-      emailVerified: true,
-    },
+    console.log("  Audit log: SYSTEM_INITIALIZED");
   });
 
-  console.log(`Super Admin: ${superAdmin.firstName} ${superAdmin.lastName} (${superAdmin.email})`);
-
-  const superAdminRole = createdRoles.find((r) => r.name === ROLE.SUPER_ADMIN);
-  if (superAdminRole) {
-    await prisma.userRole.upsert({
-      where: { userId_roleId: { userId: superAdmin.id, roleId: superAdminRole.id } },
-      update: {},
-      create: { userId: superAdmin.id, roleId: superAdminRole.id },
-    });
-  }
-
-  console.log("Super Admin role assigned");
-  console.log("Seed complete.");
+  console.log("✅ Seed complete.");
 }
 
 main()
   .catch((e) => {
-    console.error("Seed failed:", e);
+    console.error("❌ Seed failed:", e);
     process.exit(1);
   })
   .finally(async () => {
