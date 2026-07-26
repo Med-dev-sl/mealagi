@@ -11,6 +11,8 @@ import { OrganizationsModule } from "./modules/organizations/organizations.modul
 import { UsersModule } from "./modules/users/users.module";
 import { RolesModule } from "./modules/roles/roles.module";
 import { PermissionsModule } from "./modules/permissions/permissions.module";
+import { ProjectsModule } from "./modules/projects/projects.module";
+import { ResultsFrameworkModule } from "./modules/results-framework/results-framework.module";
 import { AuthModule } from "./core/auth/auth.module";
 
 import { RequestLoggerMiddleware } from "./shared/middleware/request-logger.middleware";
@@ -28,6 +30,8 @@ import { RequestLoggerMiddleware } from "./shared/middleware/request-logger.midd
     UsersModule,
     RolesModule,
     PermissionsModule,
+    ProjectsModule,
+    ResultsFrameworkModule,
     AuthModule,
   ],
 })

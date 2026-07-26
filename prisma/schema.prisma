@@ -20,6 +20,40 @@ enum SubscriptionPlan {
   ENTERPRISE
 }
 
+enum ProjectStatus {
+  DRAFT
+  PLANNING
+  ACTIVE
+  ON_HOLD
+  COMPLETED
+  CANCELLED
+  ARCHIVED
+}
+
+enum LogframeStatus {
+  DRAFT
+  ACTIVE
+  ARCHIVED
+}
+
+enum ResultLevel {
+  GOAL
+  OUTCOME
+  OUTPUT
+}
+
+enum IndicatorStatus {
+  ACTIVE
+  ARCHIVED
+}
+
+enum ReportingFrequency {
+  ANNUAL
+  QUARTERLY
+  MONTHLY
+  CUSTOM
+}
+
 enum AuditSeverity {
   DEBUG
   INFO
@@ -58,6 +92,7 @@ model Organization {
 
   users              User[]
   roles              Role[]
+  projects           Project[]
   auditLogs          AuditLog[]
   settings           OrganizationSettings?
 
@@ -131,6 +166,20 @@ model User {
   rolesCreated   Role[]  @relation("RoleCreatedBy")
   rolesUpdated   Role[]  @relation("RoleUpdatedBy")
   permissionsCreated Permission[] @relation("PermissionCreatedBy")
+
+  projectsManaged   Project[]  @relation("ProjectManager")
+  projectsCreated   Project[]  @relation("ProjectCreatedBy")
+  projectsUpdated   Project[]  @relation("ProjectUpdatedBy")
+  projectTeams      ProjectTeam[] @relation("ProjectTeamMembership")
+
+  logframesCreated   Logframe[]    @relation("LogframeCreatedBy")
+  logframesUpdated   Logframe[]    @relation("LogframeUpdatedBy")
+  logframesApproved  Logframe[]    @relation("LogframeApprovedBy")
+  goalsCreated       Goal[]        @relation("GoalCreatedBy")
+  outcomesCreated    Outcome[]     @relation("OutcomeCreatedBy")
+  outputsCreated     Output[]      @relation("OutputCreatedBy")
+  assumptionsCreated Assumption[]  @relation("AssumptionCreatedBy")
+  risksCreated       Risk[]        @relation("RiskCreatedBy")
 
   userRoles  UserRole[]
   sessions   Session[]
@@ -265,4 +314,185 @@ model AuditLog {
   @@index([organizationId, action, createdAt])
   @@index([organizationId, resource, resourceId])
   @@index([organizationId, severity, createdAt])
+}
+
+model Project {
+  id                 String        @id @default(uuid())
+  projectCode        String        @unique
+  projectName        String
+  shortName          String?
+  donor              String?
+  implementingPartner String?
+  fundingSource      String?
+  budget             Decimal       @default(0)
+  currency           String        @default("USD")
+  startDate          DateTime
+  endDate            DateTime
+  projectManagerId   String?
+  organizationId     String
+  district           String?
+  chiefdom           String?
+  community          String?
+  sector             String?
+  status             ProjectStatus @default(DRAFT)
+  description        String?
+  objectives         String?
+  expectedOutcomes   String?
+  targetBeneficiaries String?
+  createdById        String?
+  updatedById        String?
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+  deletedAt          DateTime?
+
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  projectManager  User?        @relation("ProjectManager", fields: [projectManagerId], references: [id], onDelete: SetNull)
+  createdBy       User?        @relation("ProjectCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy       User?        @relation("ProjectUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  teamMembers ProjectTeam[]
+  logframes   Logframe[]
+
+  @@unique([projectName, organizationId])
+  @@index([organizationId])
+  @@index([projectCode])
+  @@index([status])
+  @@index([donor])
+  @@index([district])
+  @@index([sector])
+  @@index([projectManagerId])
+  @@index([startDate, endDate])
+  @@index([deletedAt])
+}
+
+model ProjectTeam {
+  id        String @id @default(uuid())
+  projectId String
+  userId    String
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user    User    @relation("ProjectTeamMembership", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, userId])
+  @@index([projectId])
+  @@index([userId])
+}
+
+model Logframe {
+  id          String        @id @default(uuid())
+  projectId   String
+  title       String
+  version     Int           @default(1)
+  status      LogframeStatus @default(DRAFT)
+  description String?
+  approvedBy  String?
+  approvedAt  DateTime?
+  createdById String?
+  updatedById String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  deletedAt   DateTime?
+
+  project        Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  approvedByUser User?   @relation("LogframeApprovedBy", fields: [approvedBy], references: [id], onDelete: SetNull)
+  createdBy      User?   @relation("LogframeCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy      User?   @relation("LogframeUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  goals Goal[]
+
+  @@unique([projectId, version])
+  @@index([projectId])
+  @@index([status])
+  @@index([deletedAt])
+}
+
+model Goal {
+  id          String   @id @default(uuid())
+  logframeId  String
+  title       String
+  description String?
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+
+  logframe  Logframe @relation(fields: [logframeId], references: [id], onDelete: Cascade)
+  createdBy User?    @relation("GoalCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  outcomes Outcome[]
+
+  @@index([logframeId])
+  @@index([deletedAt])
+}
+
+model Outcome {
+  id          String   @id @default(uuid())
+  goalId      String
+  code        String?
+  title       String
+  description String?
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+
+  goal     Goal     @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  createdBy User?   @relation("OutcomeCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  outputs Output[]
+
+  @@index([goalId])
+  @@index([deletedAt])
+}
+
+model Output {
+  id          String   @id @default(uuid())
+  outcomeId   String
+  code        String?
+  title       String
+  description String?
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+
+  outcome  Outcome  @relation(fields: [outcomeId], references: [id], onDelete: Cascade)
+  createdBy User?    @relation("OutputCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([outcomeId])
+  @@index([deletedAt])
+}
+
+model Assumption {
+  id          String      @id @default(uuid())
+  level       ResultLevel
+  referenceId String
+  description String
+  mitigation  String?
+  createdById String?
+  createdAt   DateTime    @default(now())
+  deletedAt   DateTime?
+
+  createdBy User? @relation("AssumptionCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([level, referenceId])
+  @@index([deletedAt])
+}
+
+model Risk {
+  id          String      @id @default(uuid())
+  level       ResultLevel
+  referenceId String
+  description String
+  probability String?
+  impact      String?
+  mitigation  String?
+  createdById String?
+  createdAt   DateTime    @default(now())
+  deletedAt   DateTime?
+
+  createdBy User? @relation("RiskCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([level, referenceId])
+  @@index([deletedAt])
 }
