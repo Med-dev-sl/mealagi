@@ -1,24 +1,18 @@
-FROM node:22-alpine AS deps
+FROM node:22-alpine AS builder
 
 RUN apk add --no-cache libc6-compat
 
 WORKDIR /app
 
 COPY package.json package-lock.json ./
-RUN npm ci --omit=dev
-
-FROM node:22-alpine AS builder
-
-WORKDIR /app
-
-COPY package.json package-lock.json ./
 RUN npm ci
+RUN npx prisma generate
+RUN npm prune --omit=dev
 
 COPY tsconfig.json tsconfig.build.json nest-cli.json ./
 COPY prisma ./prisma
 COPY src ./src
 
-RUN npx prisma generate
 RUN npx nest build
 
 FROM node:22-alpine AS runner
@@ -30,10 +24,11 @@ WORKDIR /app
 
 RUN apk add --no-cache libc6-compat
 
-COPY --from=deps /app/node_modules ./node_modules
+COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/prisma ./prisma
-COPY package.json prisma.config.ts ./
+COPY --from=builder /app/package.json ./
+COPY --from=builder /app/prisma.config.ts ./
 
 RUN chown -R nestjs:nodejs /app
 
