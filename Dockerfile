@@ -5,12 +5,14 @@ RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
 COPY package.json package-lock.json ./
+COPY tsconfig.json tsconfig.build.json nest-cli.json ./
+COPY prisma ./prisma
+COPY prisma.config.ts ./
+
 RUN npm ci
 RUN npx prisma generate
 RUN npm prune --omit=dev
 
-COPY tsconfig.json tsconfig.build.json nest-cli.json ./
-COPY prisma ./prisma
 COPY src ./src
 
 RUN npx nest build
