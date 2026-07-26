@@ -29,22 +29,29 @@ enum AuditSeverity {
 }
 
 model Organization {
-  id               String           @id @default(uuid())
-  name             String
-  slug             String           @unique
-  code             String           @unique
-  email            String?
-  phone            String?
-  country          String?
-  address          String?
-  logo             String?
-  subscriptionPlan SubscriptionPlan @default(FREE)
-  status           Status           @default(ACTIVE)
-  createdById      String?
-  updatedById      String?
-  createdAt        DateTime         @default(now())
-  updatedAt        DateTime         @updatedAt
-  deletedAt        DateTime?
+  id                 String           @id @default(uuid())
+  name               String
+  slug               String           @unique
+  code               String           @unique
+  shortName          String?
+  registrationNumber String?          @unique
+  organizationType   String?
+  email              String?
+  phone              String?
+  website            String?
+  country            String?
+  district           String?
+  city               String?
+  address            String?
+  logo               String?
+  description        String?
+  subscriptionPlan   SubscriptionPlan @default(FREE)
+  status             Status           @default(ACTIVE)
+  createdById        String?
+  updatedById        String?
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+  deletedAt          DateTime?
 
   createdBy User?  @relation("OrganizationCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
   updatedBy User?  @relation("OrganizationUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
@@ -56,6 +63,9 @@ model Organization {
 
   @@index([slug])
   @@index([code])
+  @@index([name])
+  @@index([country])
+  @@index([registrationNumber])
   @@index([status])
   @@index([subscriptionPlan])
   @@index([deletedAt])
@@ -92,11 +102,14 @@ model User {
   lastName         String
   email            String    @unique
   phone            String?
-  passwordHash     String
-  avatar           String?
+  gender           String?
   jobTitle         String?
+  employeeId       String?   @unique
+  avatar           String?
+  passwordHash     String
   status           Status    @default(ACTIVE)
   emailVerified    Boolean   @default(false)
+  phoneVerified    Boolean   @default(false)
   lastLogin        DateTime?
   createdById      String?
   updatedById      String?
@@ -125,6 +138,8 @@ model User {
 
   @@index([organizationId])
   @@index([email])
+  @@index([employeeId])
+  @@index([jobTitle])
   @@index([status])
   @@index([deletedAt])
   @@index([organizationId, status])

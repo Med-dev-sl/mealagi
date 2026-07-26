@@ -7,6 +7,10 @@ import jwtConfig from "./core/config/jwt.config";
 
 import { PrismaModule } from "./core/database/prisma.module";
 import { HealthModule } from "./modules/health/health.module";
+import { OrganizationsModule } from "./modules/organizations/organizations.module";
+import { UsersModule } from "./modules/users/users.module";
+import { RolesModule } from "./modules/roles/roles.module";
+import { PermissionsModule } from "./modules/permissions/permissions.module";
 import { AuthModule } from "./core/auth/auth.module";
 
 import { RequestLoggerMiddleware } from "./shared/middleware/request-logger.middleware";
@@ -20,6 +24,10 @@ import { RequestLoggerMiddleware } from "./shared/middleware/request-logger.midd
     }),
     PrismaModule,
     HealthModule,
+    OrganizationsModule,
+    UsersModule,
+    RolesModule,
+    PermissionsModule,
     AuthModule,
   ],
 })

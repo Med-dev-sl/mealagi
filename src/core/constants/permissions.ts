@@ -1,6 +1,7 @@
 export const PERMISSION = {
   DASHBOARD_VIEW: "dashboard:view",
 
+  ORG_CREATE: "organization:create",
   ORG_READ: "organization:read",
   ORG_UPDATE: "organization:update",
   ORG_DELETE: "organization:delete",
@@ -57,6 +58,7 @@ export type Permission = (typeof PERMISSION)[keyof typeof PERMISSION];
 export const PERMISSION_DESCRIPTIONS: Record<Permission, string> = {
   [PERMISSION.DASHBOARD_VIEW]: "View dashboard",
 
+  [PERMISSION.ORG_CREATE]: "Create organizations",
   [PERMISSION.ORG_READ]: "Read organization settings",
   [PERMISSION.ORG_UPDATE]: "Update organization settings",
   [PERMISSION.ORG_DELETE]: "Delete organization",
